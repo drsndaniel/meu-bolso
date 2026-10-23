@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Meu Bolso</title>
+  <meta name="theme-color" content="#F4EFE6">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icone.svg">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+  <!-- Tela de entrada -->
+  <main id="tela-entrada" class="tela" hidden>
+    <div class="entrada-caixa">
+      <img src="icone.svg" alt="" class="entrada-icone">
+      <h1>Meu Bolso</h1>
+      <p class="sutil">Entre para ver os seus gastos do mês.</p>
+      <form id="form-entrada" novalidate>
+        <label for="email">E-mail</label>
+        <input id="email" type="email" autocomplete="email" inputmode="email" required>
+        <label for="senha">Senha</label>
+        <input id="senha" type="password" autocomplete="current-password" minlength="6" required>
+        <p id="erro-entrada" class="mensagem erro" role="alert" hidden></p>
+        <button type="submit" id="botao-entrar" class="botao principal">Entrar</button>
+        <button type="button" id="botao-criar" class="botao secundario">Criar conta</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Tela principal -->
+  <main id="tela-principal" class="tela" hidden>
+    <header class="topo">
+      <div>
+        <h1>Meu Bolso</h1>
+        <p id="data-hoje" class="sutil"></p>
+      </div>
+      <button type="button" id="botao-sair" class="botao discreto">Sair</button>
+    </header>
+
+    <p id="aviso-geral" class="mensagem" role="status" hidden></p>
+
+    <!-- O que aparece nos primeiros cinco segundos -->
+    <section class="cartao destaque" aria-labelledby="titulo-total">
+      <h2 id="titulo-total" class="rotulo">Total do mês de <span id="nome-mes"></span></h2>
+      <p id="total-mes" class="total">R$ 0,00</p>
+      <ul id="barras" class="barras"></ul>
+    </section>
+
+    <!-- Lançar à mão -->
+    <section class="cartao" aria-labelledby="titulo-lancar">
+      <h2 id="titulo-lancar">Lançar à mão</h2>
+      <form id="form-gasto" novalidate>
+        <label for="valor">Valor (R$)</label>
+        <input id="valor" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" required>
+
+        <label for="descricao">Onde ou com o quê</label>
+        <input id="descricao" type="text" placeholder="Ex.: almoço com cliente" autocomplete="off" maxlength="120">
+
+        <span class="rotulo-campo" id="rotulo-categoria">Categoria</span>
+        <div id="categorias" class="categorias" role="radiogroup" aria-labelledby="rotulo-categoria"></div>
+
+        <label for="data">Data</label>
+        <input id="data" type="date" required>
+
+        <p id="erro-gasto" class="mensagem erro" role="alert" hidden></p>
+        <button type="submit" class="botao principal">Salvar</button>
+      </form>
+
+      <!-- Resumo antes de gravar: nada é salvo sem Confirmar -->
+      <div id="revisao" class="revisao" hidden>
+        <h3>Confira antes de salvar</h3>
+        <dl>
+          <dt>Valor</dt><dd id="rev-valor"></dd>
+          <dt>Onde ou com o quê</dt><dd id="rev-descricao"></dd>
+          <dt>Categoria</dt><dd id="rev-categoria"></dd>
+          <dt>Data</dt><dd id="rev-data"></dd>
+        </dl>
+        <div class="linha-botoes">
+          <button type="button" id="botao-corrigir" class="botao secundario">Corrigir</button>
+          <button type="button" id="botao-confirmar" class="botao principal">Confirmar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lista do mês -->
+    <section class="cartao" aria-labelledby="titulo-lista">
+      <h2 id="titulo-lista">Gastos do mês</h2>
+      <p id="lista-vazia" class="sutil">Nenhum gasto lançado neste mês ainda.</p>
+      <ul id="lista-gastos" class="lista"></ul>
+    </section>
+
+    <!-- Resumo da semana: escondido enquanto não houver resumo -->
+    <section id="cartao-resumo" class="cartao" aria-labelledby="titulo-resumo" hidden>
+      <h2 id="titulo-resumo">Resumo da semana</h2>
+      <p id="texto-resumo" class="texto-resumo"></p>
+      <p id="data-resumo" class="sutil"></p>
+    </section>
+
+    <!-- Espaço do assistente (chega na sexta) -->
+    <section class="cartao" aria-labelledby="titulo-assistente">
+      <h2 id="titulo-assistente">Assistente</h2>
+      <p class="sutil">Lance um gasto por uma frase ou pela foto do cupom.</p>
+      <form id="form-assistente" novalidate>
+        <label for="frase" class="oculto">Frase do gasto</label>
+        <input id="frase" type="text" placeholder="Ex.: 45 de almoço hoje" autocomplete="off">
+        <div class="linha-botoes">
+          <button type="button" id="botao-foto" class="botao secundario">Foto do cupom</button>
+          <button type="submit" class="botao principal">Enviar</button>
+        </div>
+        <p id="aviso-assistente" class="mensagem" role="status" hidden></p>
+      </form>
+    </section>
+  </main>
+
+  <p id="carregando" class="carregando">Carregando…</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="configuracao.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
