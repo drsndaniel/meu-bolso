@@ -363,11 +363,107 @@
     await carregarGastos();
   }
 
-  // ---------- Assistente (chega na sexta) ----------
+  // ---------- Assistente ----------
 
-  function avisoAssistente(evento) {
-    if (evento) evento.preventDefault();
-    mostrar($("aviso-assistente"), "O assistente chega na sexta.");
+  const LADO_MAXIMO = 1600;
+  let seletorFoto = null;
+
+  function travarAssistente(travar) {
+    for (const el of $("form-assistente").querySelectorAll("input, button")) el.disabled = travar;
+  }
+
+  // Reduz a foto no aparelho (no máximo 1600 px, JPEG) e devolve só o base64.
+  // A foto fica só na memória e não é guardada em lugar nenhum.
+  function reduzirFoto(arquivo) {
+    return new Promise((resolver, rejeitar) => {
+      const url = URL.createObjectURL(arquivo);
+      const img = new Image();
+      img.onload = () => {
+        const escala = Math.min(1, LADO_MAXIMO / Math.max(img.width, img.height));
+        const tela = document.createElement("canvas");
+        tela.width = Math.round(img.width * escala);
+        tela.height = Math.round(img.height * escala);
+        tela.getContext("2d").drawImage(img, 0, 0, tela.width, tela.height);
+        URL.revokeObjectURL(url);
+        resolver(tela.toDataURL("image/jpeg", 0.85).split(",")[1]);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        rejeitar(new Error("foto ilegível"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function falarComAssistente(pedido) {
+    mostrar($("aviso-assistente"), pedido.imagem ? "Lendo o cupom…" : "Pensando…");
+    travarAssistente(true);
+    try {
+      const { data } = await cliente.auth.getSession();
+      if (!data.session) throw new Error("not authenticated");
+      const r = await fetch("/api/assistente", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + data.session.access_token
+        },
+        body: JSON.stringify({ ...pedido, categorias: CATEGORIAS })
+      });
+      let corpo = {};
+      try { corpo = await r.json(); } catch (_) { /* resposta sem JSON */ }
+      if (!r.ok) {
+        mostrar($("aviso-assistente"), corpo.erro || "O assistente não respondeu agora. Tente de novo em alguns segundos.");
+        return;
+      }
+      mostrar($("aviso-assistente"), corpo.resposta || "");
+      if (corpo.lancou) {
+        $("frase").value = "";
+        await carregarGastos();
+      }
+    } catch (e) {
+      mostrar($("aviso-assistente"), traduzirErro(e));
+    } finally {
+      travarAssistente(false);
+    }
+  }
+
+  function enviarFrase(evento) {
+    evento.preventDefault();
+    const mensagem = $("frase").value.trim();
+    if (!mensagem) {
+      mostrar($("aviso-assistente"), "Escreva um gasto, como \"mercado 50 hoje\", ou uma pergunta.");
+      $("frase").focus();
+      return;
+    }
+    falarComAssistente({ mensagem });
+  }
+
+  function escolherFoto() {
+    if (!seletorFoto) {
+      seletorFoto = document.createElement("input");
+      seletorFoto.type = "file";
+      seletorFoto.accept = "image/*";
+      seletorFoto.setAttribute("capture", "environment");
+      seletorFoto.hidden = true;
+      seletorFoto.addEventListener("change", enviarFoto);
+      document.body.append(seletorFoto);
+    }
+    seletorFoto.value = "";
+    seletorFoto.click();
+  }
+
+  async function enviarFoto() {
+    const arquivo = seletorFoto.files && seletorFoto.files[0];
+    seletorFoto.value = "";
+    if (!arquivo) return;
+    let imagem;
+    try {
+      imagem = await reduzirFoto(arquivo);
+    } catch (_) {
+      mostrar($("aviso-assistente"), "Não consegui abrir esta foto. Tire outra foto do cupom e tente de novo.");
+      return;
+    }
+    falarComAssistente({ mensagem: $("frase").value.trim(), imagem, mime: "image/jpeg" });
   }
 
   // ---------- Início ----------
@@ -401,8 +497,8 @@
     $("form-gasto").addEventListener("submit", prepararRevisao);
     $("botao-corrigir").addEventListener("click", corrigir);
     $("botao-confirmar").addEventListener("click", confirmar);
-    $("form-assistente").addEventListener("submit", avisoAssistente);
-    $("botao-foto").addEventListener("click", avisoAssistente);
+    $("form-assistente").addEventListener("submit", enviarFrase);
+    $("botao-foto").addEventListener("click", escolherFoto);
 
     let usuarioAtual = null;
     cliente.auth.onAuthStateChange((_evento, sessao) => {
