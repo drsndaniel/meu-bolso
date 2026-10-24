@@ -1,0 +1,29 @@
+# Revisão de celular (390 px) do Meu Bolso
+
+Li `app/index.html`, `app/estilo.css` e `app/app.js`. Não achei nenhum problema de gravidade ALTA: o app abre, não tem rolagem para o lado e os campos são grandes. Os pontos abaixo são de média e baixa gravidade. As razões de contraste foram calculadas à mão a partir das cores do CSS.
+
+| Item | O que está errado | Onde | Gravidade | Correção em uma frase |
+|---|---|---|---|---|
+| 1. Alvo de toque | O botão "Apagar" tem cerca de 30 px de altura e 60 px de largura, abaixo de 44 px. Fica colado no valor, e um toque errado abre a confirmação de apagar. | `estilo.css` `.botao-apagar` (padding 6px 10px, font 0.85rem) | MÉDIA | Dar ao botão pelo menos 44 px de altura e de largura (`min-height: 44px; min-width: 44px`). |
+| 1. Alvo de toque | O botão "Sair" tem cerca de 41 px de altura. | `estilo.css` `.discreto` (padding 8px 14px) | BAIXA | Subir o padding vertical ou usar `min-height: 44px`. |
+| 1. Alvo de toque | Os botões de categoria têm cerca de 43 px de altura, quase 44 px. | `estilo.css` `.categoria` (padding 10px 12px, 0.9rem) | BAIXA | Usar `min-height: 44px`. |
+| 2. Tamanho do texto | O detalhe de cada gasto (data e categoria) tem 13,6 px, abaixo de 14 px. O texto do "Apagar" também tem 13,6 px. | `estilo.css` `.item-detalhe` (0.85rem) e `.botao-apagar` (0.85rem) | MÉDIA | Subir esses dois textos para pelo menos 0.9rem (14,4 px). |
+| 3. Rolagem lateral | Não achei rolagem para o lado. As descrições longas quebram (`overflow-wrap: anywhere`) e `.item-info` tem `min-width: 0`. Não há larguras fixas, tabelas nem imagens grandes. | `estilo.css` `.item-info`, `.revisao dd` | OK | Nenhuma. |
+| 4. Estado vazio | A frase "Nenhum gasto lançado neste mês ainda." existe. Mas ela já aparece enquanto os gastos carregam, e continua aparecendo se a carga falhar, dizendo que não há gastos quando na verdade deu erro. | `index.html` linha 91; `app.js` `carregarGastos` (linhas 160-177) e `desenharLista` (linha 238) | BAIXA | Deixar a frase escondida até a carga terminar com sucesso. |
+| 5. Erros | O aviso de "Gasto salvo.", o erro ao carregar e o erro ao apagar aparecem no `#aviso-geral`, no topo da página. Quem está na lista ou no formulário, mais abaixo, não vê a mensagem. | `index.html` linha 43; `app.js` linhas 170, 345 e 360 | MÉDIA | Mostrar o aviso perto de onde o toque aconteceu, ou rolar a tela até ele, ou deixá-lo fixo no topo da tela. |
+| 5. Erros | Se `getSession()` falhar, não há `catch`. A tela fica para sempre em "Carregando…" e a pessoa não sabe o que fazer. Se o script do Supabase demorar a vir da CDN, também não há tempo limite. | `app.js` linhas 512-514; `index.html` linha 118 | MÉDIA | Adicionar um `.catch` que mostre "Não foi possível abrir o app. Verifique a internet e recarregue a página." |
+| 5. Erros | A frase do erro de e-mail não confirmado manda mexer no "painel do Supabase", o que é jargão técnico para a pessoa na tela de entrada. A mensagem `corpo.erro` do assistente é exibida como vem do servidor, sem garantia de estar em português. | `app.js` linhas 76, 145 e 415 | BAIXA | Trocar por uma frase simples ("Não foi possível entrar agora. Avise o dono do app.") e filtrar o texto do servidor. |
+| 6. Teclado numérico | Está correto: o campo de valor tem `inputmode="decimal"` e `type="text"`. | `index.html` linha 57 | OK | Nenhuma. |
+| 7. Contraste | O texto "sutil" (`#7A7368`) tem razão de cerca de 4,1:1 sobre o fundo `#F4EFE6` e de cerca de 3,6:1 sobre `#DCE5D6`. Isso afeta a data de hoje, a frase da entrada, os rótulos Valor/Data da revisão e o botão "Sair". O mínimo é 4,5:1. | `estilo.css` `--sutil`, `.sutil`, `.discreto`, `.revisao dt` | MÉDIA | Escurecer `--sutil` para algo como `#5F5A50`. |
+| 7. Contraste | O rótulo "Total do mês de…" (`#5E7A5A` sobre `#DCE5D6`) tem cerca de 3,7:1. | `estilo.css` `.rotulo` | MÉDIA | Usar um verde mais escuro, como `#44603F`. |
+| 7. Contraste | O texto de erro (`#A8584A` sobre `#F5E3DE`) tem cerca de 4,1:1. | `estilo.css` `.mensagem.erro` | MÉDIA | Escurecer `--erro` para algo como `#8E3F32`. |
+| 7. Foco visível | Os botões usam o anel de foco do navegador, o que está bom. Nos campos, o anel é verde-sálvia claro (`#8FA88A`) sobre branco, com contraste fraco (cerca de 2,6:1). | `estilo.css` `input:focus` | BAIXA | Usar `--salvia-forte` no contorno do foco. |
+| 7. Foco no teclado | Ao escolher uma categoria, os botões são recriados (`desenharCategorias`) e o foco do teclado se perde. Também não há navegação por setas, mesmo com `role="radio"`. | `app.js` linhas 264-280 | MÉDIA | Atualizar `aria-checked` nos botões já existentes, sem recriá-los, e devolver o foco ao botão escolhido. |
+| Extra | A foto do cupom usa `capture="environment"`, que em alguns celulares abre só a câmera e não deixa escolher uma imagem da galeria. | `app.js` linha 446 | BAIXA | Tirar o `capture` para o celular oferecer câmera e galeria. |
+| Extra | `viewport-fit=cover` está ligado, mas não há margem de segurança (`env(safe-area-inset-*)`). Em celulares com entalhe, o conteúdo pode ficar sob a borda na horizontal. O `apple-touch-icon` aponta para um SVG, que o iPhone ignora. | `index.html` linhas 5 e 10; `estilo.css` `.tela` | BAIXA | Somar `env(safe-area-inset-*)` ao padding de `.tela` e oferecer um ícone PNG para o iPhone. |
+
+## Os três itens que mais atrapalham
+
+1. O botão "Apagar" é pequeno demais para o dedo (cerca de 30 px de altura, com texto de 13,6 px) e fica colado no valor do gasto, perto do risco de toque errado.
+2. As mensagens de "Gasto salvo.", de erro ao carregar e de erro ao apagar aparecem no topo da página, fora da vista de quem está mais abaixo, e a tela pode ficar presa em "Carregando…" sem dizer o que fazer se a sessão falhar.
+3. O contraste do texto fica abaixo de 4,5:1 na data de hoje, nos rótulos "sutis", no rótulo do total e nas mensagens de erro, o que dificulta a leitura ao ar livre.

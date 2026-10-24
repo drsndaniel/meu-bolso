@@ -16,6 +16,8 @@
   let gastos = [];
   let categoriaEscolhida = null;
   let gastoPendente = null;
+  let editandoId = null;           // gasto da lista que está sendo corrigido
+  let origemFormulario = "manual"; // "texto" ou "foto" quando veio do assistente
 
   // ---------- Utilidades ----------
 
@@ -250,32 +252,47 @@
       const valor = document.createElement("span");
       valor.className = "item-valor";
       valor.textContent = moeda.format(Number(g.valor) || 0);
+      const corrigirItem = document.createElement("button");
+      corrigirItem.type = "button";
+      corrigirItem.className = "botao-corrigir";
+      corrigirItem.textContent = "Corrigir";
+      corrigirItem.setAttribute("aria-label", "Corrigir " + (g.descricao || g.categoria) + " de " + moeda.format(Number(g.valor) || 0));
+      corrigirItem.addEventListener("click", () => corrigirGasto(g));
       const apagar = document.createElement("button");
       apagar.type = "button";
       apagar.className = "botao-apagar";
       apagar.textContent = "Apagar";
       apagar.setAttribute("aria-label", "Apagar " + (g.descricao || g.categoria) + " de " + moeda.format(Number(g.valor) || 0));
       apagar.addEventListener("click", () => apagarGasto(g));
-      li.append(info, valor, apagar);
+      const acoes = document.createElement("div");
+      acoes.className = "item-acoes";
+      acoes.append(corrigirItem, apagar);
+      li.append(info, valor, acoes);
       lista.append(li);
     }
   }
 
+  // Os botões são criados uma vez só; depois só muda a marcação,
+  // para o foco do teclado não se perder ao escolher uma categoria.
   function desenharCategorias() {
     const caixa = $("categorias");
-    caixa.innerHTML = "";
-    for (const cat of CATEGORIAS) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "categoria";
-      b.textContent = cat;
-      b.setAttribute("role", "radio");
-      b.setAttribute("aria-checked", String(cat === categoriaEscolhida));
-      b.addEventListener("click", () => {
-        categoriaEscolhida = cat;
-        desenharCategorias();
-      });
-      caixa.append(b);
+    if (!caixa.children.length) {
+      for (const cat of CATEGORIAS) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "categoria";
+        b.textContent = cat;
+        b.setAttribute("role", "radio");
+        b.addEventListener("click", () => {
+          categoriaEscolhida = cat;
+          desenharCategorias();
+          b.focus();
+        });
+        caixa.append(b);
+      }
+    }
+    for (const b of caixa.children) {
+      b.setAttribute("aria-checked", String(b.textContent === categoriaEscolhida));
     }
   }
 
@@ -283,6 +300,11 @@
 
   function prepararRevisao(evento) {
     evento.preventDefault();
+    revisarFormulario();
+  }
+
+  // Confere o formulário e mostra o resumo; nada é gravado sem Confirmar
+  function revisarFormulario() {
     mostrar($("erro-gasto"), "");
     const valor = lerValor($("valor").value);
     const data = $("data").value;
@@ -290,18 +312,19 @@
 
     if (!Number.isFinite(valor) || valor <= 0) {
       mostrar($("erro-gasto"), "Digite um valor maior que zero, por exemplo 45,90.");
-      return;
+      return false;
     }
     if (!categoriaEscolhida) {
       mostrar($("erro-gasto"), "Escolha uma categoria tocando num dos botões.");
-      return;
+      return false;
     }
     if (!data) {
       mostrar($("erro-gasto"), "Escolha a data do gasto.");
-      return;
+      return false;
     }
 
-    gastoPendente = { valor, descricao, categoria: categoriaEscolhida, data };
+    gastoPendente = { valor, descricao, categoria: categoriaEscolhida, data, origem: origemFormulario };
+    $("revisao").querySelector("h3").textContent = editandoId ? "Confira a correção antes de salvar" : "Confira antes de salvar";
     $("rev-valor").textContent = moeda.format(valor);
     $("rev-descricao").textContent = descricao || "—";
     $("rev-categoria").textContent = categoriaEscolhida;
@@ -309,6 +332,40 @@
     $("form-gasto").hidden = true;
     $("revisao").hidden = false;
     $("botao-confirmar").focus();
+    return true;
+  }
+
+  // Põe os dados no formulário (para corrigir um gasto ou revisar o do assistente)
+  function preencherFormulario(g) {
+    $("valor").value = Number(g.valor).toFixed(2).replace(".", ",");
+    $("descricao").value = g.descricao || "";
+    categoriaEscolhida = CATEGORIAS.includes(g.categoria) ? g.categoria : null;
+    $("data").value = g.data;
+    desenharCategorias();
+  }
+
+  function limparFormulario() {
+    gastoPendente = null;
+    editandoId = null;
+    origemFormulario = "manual";
+    categoriaEscolhida = null;
+    $("valor").value = "";
+    $("descricao").value = "";
+    $("form-gasto").querySelector('button[type="submit"]').textContent = "Salvar";
+    desenharCategorias();
+    $("revisao").hidden = true;
+    $("form-gasto").hidden = false;
+  }
+
+  function corrigirGasto(g) {
+    editandoId = g.id;
+    origemFormulario = g.origem || "manual";
+    preencherFormulario(g);
+    $("form-gasto").querySelector('button[type="submit"]').textContent = "Salvar correção";
+    $("revisao").hidden = true;
+    $("form-gasto").hidden = false;
+    $("form-gasto").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("valor").focus({ preventScroll: true });
   }
 
   function corrigir() {
@@ -323,26 +380,22 @@
     const botao = $("botao-confirmar");
     botao.disabled = true;
     try {
-      const { error } = await cliente.from("gastos").insert({
-        dono: usuario.id,
+      const dados = {
         data: gastoPendente.data,
         descricao: gastoPendente.descricao || null,
         valor: gastoPendente.valor,
-        categoria: gastoPendente.categoria,
-        origem: "manual"
-      });
+        categoria: gastoPendente.categoria
+      };
+      const corrigindo = Boolean(editandoId);
+      const { error } = corrigindo
+        ? await cliente.from("gastos").update(dados).eq("id", editandoId)
+        : await cliente.from("gastos").insert({ ...dados, dono: usuario.id, origem: gastoPendente.origem || "manual" });
       if (error) throw error;
 
       // Formulário limpo e pronto para o próximo gasto (a data continua a mesma)
-      gastoPendente = null;
-      categoriaEscolhida = null;
-      $("valor").value = "";
-      $("descricao").value = "";
-      desenharCategorias();
-      $("revisao").hidden = true;
-      $("form-gasto").hidden = false;
+      limparFormulario();
       await carregarGastos();
-      mostrar($("aviso-geral"), "Gasto salvo.");
+      mostrar($("aviso-geral"), corrigindo ? "Correção salva." : "Gasto salvo.");
       setTimeout(() => mostrar($("aviso-geral"), ""), 2500);
     } catch (e) {
       corrigir();
@@ -395,6 +448,21 @@
     });
   }
 
+  // O gasto que o assistente entendeu vai para o mesmo resumo do lançamento à mão:
+  // só é gravado depois de Confirmar, e Corrigir volta ao formulário já preenchido.
+  function revisarProposta(p) {
+    editandoId = null;
+    origemFormulario = p.origem === "foto" ? "foto" : "texto";
+    preencherFormulario(p);
+    $("form-gasto").querySelector('button[type="submit"]').textContent = "Salvar";
+    if (revisarFormulario()) {
+      $("frase").value = "";
+      $("revisao").scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      $("form-gasto").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   async function falarComAssistente(pedido) {
     mostrar($("aviso-assistente"), pedido.imagem ? "Lendo o cupom…" : "Pensando…");
     travarAssistente(true);
@@ -416,10 +484,7 @@
         return;
       }
       mostrar($("aviso-assistente"), corpo.resposta || "");
-      if (corpo.lancou) {
-        $("frase").value = "";
-        await carregarGastos();
-      }
+      if (corpo.proposta) revisarProposta(corpo.proposta);
     } catch (e) {
       mostrar($("aviso-assistente"), traduzirErro(e));
     } finally {
@@ -577,6 +642,8 @@
 
     cliente.auth.getSession().then(({ data }) => {
       if (!data.session && usuarioAtual === null) abrirEntrada();
+    }).catch(() => {
+      $("carregando").textContent = "Não foi possível abrir o app. Verifique a internet e recarregue a página.";
     });
   }
 

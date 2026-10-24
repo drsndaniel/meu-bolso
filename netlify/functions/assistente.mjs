@@ -90,26 +90,20 @@ async function erroDoBanco(r) {
   return erro(500, "O banco não respondeu como esperado. Tente de novo em alguns segundos.");
 }
 
-async function registrarGasto(token, usuario, args, categorias, origem) {
+// Não grava: devolve o gasto entendido para o app mostrar o resumo.
+// Só depois de a pessoa tocar em Confirmar o app grava, com o login dela.
+function proporGasto(args, categorias, origem) {
   const valor = Math.round(Number(args.valor) * 100) / 100;
   if (!Number.isFinite(valor) || valor <= 0) {
     return responder(200, { resposta: "Não entendi o valor. Diga quanto foi, por exemplo: mercado 50 hoje." });
   }
   const data = dataValida(args.data) ? args.data : hojeSaoPaulo();
   const categoria = ajustarCategoria(args.categoria, categorias);
-  const descricao = String(args.descricao || "").trim().slice(0, 120) || null;
+  const descricao = String(args.descricao || "").trim().slice(0, 120);
 
-  const r = await fetch(SUPABASE_URL + "/rest/v1/gastos", {
-    method: "POST",
-    headers: { ...cabecalhosSupabase(token), Prefer: "return=representation" },
-    body: JSON.stringify({ dono: usuario.id, data, descricao, valor, categoria, origem })
-  });
-  if (!r.ok) return erroDoBanco(r);
-
-  const [gravado] = await r.json();
-  const texto = "Lancei " + moeda.format(Number(gravado.valor)) + " em " + gravado.categoria +
-    ": " + (gravado.descricao || "sem descrição") + ", " + dataBR(gravado.data) + ".";
-  return responder(200, { resposta: texto, lancou: true });
+  const texto = "Entendi " + moeda.format(valor) + " em " + categoria + ": " + (descricao || "sem descrição") +
+    ", " + dataBR(data) + ". Confira o resumo e toque em Confirmar para salvar.";
+  return responder(200, { resposta: texto, proposta: { data, descricao, valor, categoria, origem } });
 }
 
 async function consultarGastos(token, args, categorias) {
@@ -278,7 +272,7 @@ export default async (req) => {
 
   try {
     if (chamada && chamada.functionCall.name === "registrar_gasto") {
-      return await registrarGasto(token, usuario, chamada.functionCall.args || {}, categorias, imagem ? "foto" : "texto");
+      return proporGasto(chamada.functionCall.args || {}, categorias, imagem ? "foto" : "texto");
     }
     if (chamada && chamada.functionCall.name === "consultar_gastos") {
       return await consultarGastos(token, chamada.functionCall.args || {}, categorias);

@@ -5,11 +5,11 @@
   --cartao: #FBF8F2;
   --borda: #E4DCCD;
   --texto: #3D3A34;
-  --sutil: #7A7368;
+  --sutil: #5F5A50;
   --salvia: #8FA88A;
   --salvia-forte: #5E7A5A;
   --salvia-clara: #DCE5D6;
-  --erro: #A8584A;
+  --erro: #8E3F32;
   --erro-fundo: #F5E3DE;
   --raio: 14px;
 }
@@ -67,7 +67,7 @@ h3 { font-size: 1rem; margin: 0 0 8px; }
 }
 
 .destaque { background: var(--salvia-clara); border-color: transparent; }
-.rotulo { font-size: 0.95rem; font-weight: 500; color: var(--salvia-forte); margin: 0; }
+.rotulo { font-size: 0.95rem; font-weight: 500; color: #44603F; margin: 0; }
 .total { font-size: 2.2rem; font-weight: 700; margin: 2px 0 12px; letter-spacing: -0.5px; }
 
 /* Barras por categoria */
@@ -186,6 +186,14 @@ input:focus { outline: 2px solid var(--salvia); outline-offset: 1px; border-colo
 
 .mensagem.erro { background: var(--erro-fundo); color: var(--erro); }
 
+/* O aviso geral fica preso no topo da tela, visível de qualquer parte da página */
+#aviso-geral {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
 /* Resumo da semana */
 .texto-resumo { margin: 0; white-space: pre-line; }
 
@@ -203,19 +211,27 @@ input:focus { outline: 2px solid var(--salvia); outline-offset: 1px; border-colo
 .lista li:first-child { border-top: none; }
 .item-info { flex: 1; min-width: 0; }
 .item-descricao { font-weight: 500; overflow-wrap: anywhere; }
-.item-detalhe { color: var(--sutil); font-size: 0.85rem; }
+.item-detalhe { color: var(--sutil); font-size: 0.9rem; }
 .item-valor { font-weight: 600; white-space: nowrap; }
 
-.botao-apagar {
+.lista li { flex-wrap: wrap; }
+.item-acoes { display: flex; gap: 8px; width: 100%; justify-content: flex-end; }
+
+.botao-apagar,
+.botao-corrigir {
   font: inherit;
-  font-size: 0.85rem;
-  padding: 6px 10px;
+  font-size: 0.9rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
   border-radius: 8px;
   border: 1px solid var(--borda);
   background: #fff;
   color: var(--erro);
   cursor: pointer;
 }
+
+.botao-corrigir { color: var(--salvia-forte); }
 
 /* Computador */
 @media (min-width: 768px) {
