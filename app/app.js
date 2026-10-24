@@ -452,6 +452,71 @@
     seletorFoto.click();
   }
 
+  // ---------- Microfone (reconhecimento de voz do navegador) ----------
+
+  const Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let ouvinte = null;
+
+  function prepararMicrofone() {
+    if (!Reconhecimento) {
+      // Sem reconhecimento de voz: o botão some e fica a dica do teclado
+      $("botao-microfone").hidden = true;
+      $("dica-microfone").hidden = false;
+      return;
+    }
+    $("botao-microfone").hidden = false;
+    $("botao-microfone").addEventListener("click", ouvir);
+  }
+
+  function ouvir() {
+    if (ouvinte) {
+      ouvinte.stop();
+      return;
+    }
+    ouvinte = new Reconhecimento();
+    ouvinte.lang = "pt-BR";
+    ouvinte.interimResults = false;
+    ouvinte.maxAlternatives = 1;
+    let ouviu = false;
+
+    ouvinte.onresult = (evento) => {
+      const texto = evento.results[0][0].transcript.trim();
+      if (!texto) return;
+      ouviu = true;
+      $("frase").value = texto;
+    };
+    ouvinte.onerror = (evento) => {
+      const frases = {
+        "not-allowed": "O navegador não deixou usar o microfone. Permita o microfone nas configurações do site e tente de novo.",
+        "service-not-allowed": "O navegador não deixou usar o microfone. Permita o microfone nas configurações do site e tente de novo.",
+        "no-speech": "Não ouvi nada. Toque no microfone e fale de novo.",
+        "audio-capture": "Não encontrei um microfone neste aparelho. Use o microfone do teclado do celular.",
+        "network": "Sem conexão para entender a fala. Verifique a internet e tente de novo."
+      };
+      if (evento.error !== "aborted") {
+        mostrar($("aviso-assistente"), frases[evento.error] || "Não consegui ouvir agora. Tente de novo ou use o microfone do teclado do celular.");
+      }
+    };
+    ouvinte.onend = () => {
+      ouvinte = null;
+      $("botao-microfone").classList.remove("ouvindo");
+      $("botao-microfone").setAttribute("aria-label", "Falar");
+      if (ouviu) falarComAssistente({ mensagem: $("frase").value.trim() });
+      else if ($("aviso-assistente").textContent === "Ouvindo…") mostrar($("aviso-assistente"), "");
+    };
+
+    try {
+      ouvinte.start();
+    } catch (_) {
+      ouvinte = null;
+      mostrar($("aviso-assistente"), "Não consegui ligar o microfone. Tente de novo ou use o microfone do teclado do celular.");
+      return;
+    }
+    $("botao-microfone").classList.add("ouvindo");
+    $("botao-microfone").setAttribute("aria-label", "Parar de ouvir");
+    mostrar($("aviso-assistente"), "Ouvindo…");
+  }
+
   async function enviarFoto() {
     const arquivo = seletorFoto.files && seletorFoto.files[0];
     seletorFoto.value = "";
@@ -499,6 +564,7 @@
     $("botao-confirmar").addEventListener("click", confirmar);
     $("form-assistente").addEventListener("submit", enviarFrase);
     $("botao-foto").addEventListener("click", escolherFoto);
+    prepararMicrofone();
 
     let usuarioAtual = null;
     cliente.auth.onAuthStateChange((_evento, sessao) => {
