@@ -2,7 +2,7 @@ create table public.gastos (
   id uuid primary key default gen_random_uuid(),
   dono uuid not null default auth.uid() references auth.users (id) on delete cascade,
   data date not null default current_date,
-  descricao text not null,
+  descricao text,
   valor numeric(12,2) not null check (valor > 0),
   categoria text not null,
   origem text not null default 'manual' check (origem in ('manual', 'texto', 'foto')),
